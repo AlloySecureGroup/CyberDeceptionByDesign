@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSHSweeper</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Courier+New:wght@400;700&display=swap');
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: #00ff00;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin: 0;
+            text-shadow: 0 0 10px #00ff00;
+            color: #00ff00;
+        }
+        
+        .header p {
+            margin: 10px 0;
+            color: #88ff88;
+            font-size: 1.1rem;
+        }
+        
+        .game-info {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #00ff00;
+        }
+        
+        .info-item {
+            text-align: center;
+        }
+        
+        .info-label {
+            display: block;
+            font-size: 0.9rem;
+            color: #88ff88;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00;
+        }
+        
+        .game-board {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        #board {
+            border-collapse: collapse;
+            background: #000;
+            border: 3px solid #00ff00;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+        
+        .cell {
+            width: 30px;
+            height: 30px;
+            border: 2px outset #333;
+            background: #222;
+            text-align: center;
+            vertical-align: middle;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            position: relative;
+            transition: all 0.1s;
+        }
+        
+        .cell:hover {
+            background: #333;
+        }
+        
+        .cell.revealed {
+            border: 1px inset #333;
+            background: #111;
+        }
+        
+        .cell.flagged {
+            background: #444;
+            color: #ff6600;
+        }
+        
+        .cell.server {
+            background: #ff0000;
+            color: #fff;
+        }
+        
+        .cell.safe-server {
+            background: #00aa00;
+            color: #fff;
+        }
+        
+        /* Number colors for adjacent server counts */
+        .cell[data-count="1"] { color: #0066ff; }
+        .cell[data-count="2"] { color: #00aa00; }
+        .cell[data-count="3"] { color: #ff0000; }
+        .cell[data-count="4"] { color: #000080; }
+        .cell[data-count="5"] { color: #800000; }
+        .cell[data-count="6"] { color: #008080; }
+        .cell[data-count="7"] { color: #000000; }
+        .cell[data-count="8"] { color: #808080; }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .difficulty-btn {
+            padding: 12px 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        
+        .difficulty-btn:hover {
+            background: rgba(0, 255, 0, 0.1);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        
+        .difficulty-btn.active {
+            background: rgba(0, 255, 0, 0.2);
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
+        }
+        
+        .game-status {
+            font-size: 1.2rem;
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .win {
+            color: #00ff00;
+            background: rgba(0, 255, 0, 0.1);
+            border: 2px solid #00ff00;
+        }
+        
+        .lose {
+            color: #ff0000;
+            background: rgba(255, 0, 0, 0.1);
+            border: 2px solid #ff0000;
+        }
+        
+        .instructions {
+            max-width: 600px;
+            text-align: center;
+            color: #88ff88;
+            line-height: 1.6;
+            margin-top: 20px;
+        }
+        
+        .instructions h3 {
+            color: #00ff00;
+            margin-bottom: 10px;
+        }
+        
+        /* Server and flag icons */
+        .server-icon::before {
+            content: "🖥️";
+            font-size: 16px;
+        }
+        
+        .flag-icon::before {
+            content: "🚩";
+            font-size: 14px;
+        }
+        
+        .connection-icon::before {
+            content: "🔗";
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>SSHSweeper</h1>
+        <p>Navigate the network and avoid the hidden decoy servers!</p>
+    </div>
+    
+    <div class="game-info">
+        <div class="info-item">
+            <span class="info-label">DECOYS</span>
+            <div class="info-value" id="server-count">2</div>
+        </div>
+        <div class="info-item">
+            <span class="info-label">FLAGGED</span>
+            <div class="info-value" id="flagged-count">0</div>
+        </div>
+        <div class="info-item">
+            <span class="info-label">TIME</span>
+            <div class="info-value" id="timer">000</div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button class="difficulty-btn active" data-size="9" data-servers="10">EASY (9x9)</button>
+        <button class="difficulty-btn" data-size="16" data-servers="40">MEDIUM (16x16)</button>
+        <button class="difficulty-btn" data-size="20" data-servers="80">HARD (20x20)</button>
+    </div>
+    
+    <div class="game-board">
+        <table id="board"></table>
+    </div>
+    
+    <div class="game-status" id="game-status">
+        Click any cell to start scanning the network...
+    </div>
+    
+    <div class="instructions">
+        <h3>How to Play</h3>
+        <p><strong>Left Click:</strong> Scan a network node</p>
+        <p><strong>Right Click:</strong> Flag suspected decoy locations</p>
+        <p><strong>Numbers:</strong> Show how many servers are adjacent to that node</p>
+        <p><strong>🖥️ Red Servers:</strong> Dangerous decoys - avoid these!</p>
+        <p><strong>🔗 Green Servers:</strong> Safe connections - harmless to click</p>
+        <p><strong>Goal:</strong> Scan all safe nodes and avoid the decoy servers!</p>
+    </div>
+
+    <script>
+        class Cell {
+            constructor(row, col) {
+                this.row = row;
+                this.col = col;
+                this.server = false;
+                this.isDecoy = false; // 25% of servers will be decoys
+                this.revealed = false;
+                this.flagged = false;
+                this.adjServers = 0;
+            }
+            
+            getAdjCells() {
+                const adjCells = [];
+                for (let r = this.row - 1; r <= this.row + 1; r++) {
+                    for (let c = this.col - 1; c <= this.col + 1; c++) {
+                        if (r >= 0 && r < size && c >= 0 && c < size && !(r === this.row && c === this.col)) {
+                            adjCells.push(board[r][c]);
+                        }
+                    }
+                }
+                return adjCells;
+            }
+            
+            calcAdjServers() {
+                const adjCells = this.getAdjCells();
+                this.adjServers = adjCells.reduce((count, cell) => count + (cell.server ? 1 : 0), 0);
+            }
+            
+            flag() {
+                if (!this.revealed) {
+                    this.flagged = !this.flagged;
+                    return this.flagged;
+                }
+            }
+            
+            reveal() {
+                if (this.revealed || this.flagged) return false;
+                this.revealed = true;
+                
+                if (this.server && this.isDecoy) return true; // Hit a decoy server - game over
+                if (this.server && !this.isDecoy) return false; // Hit a normal server - safe
+                
+                if (this.adjServers === 0) {
+                    const adjCells = this.getAdjCells();
+                    adjCells.forEach(cell => {
+                        if (!cell.revealed && !cell.flagged) {
+                            cell.reveal();
+                        }
+                    });
+                }
+                return false;
+            }
+        }
+        
+        // Game state
+        let size = 9;
+        let totalServers = 10;
+        let board = [];
+        let gameActive = false;
+        let gameWon = false;
+        let startTime = null;
+        let timerInterval = null;
+        let flaggedCount = 0;
+        
+        // DOM elements
+        const boardEl = document.getElementById('board');
+        const serverCountEl = document.getElementById('server-count');
+        const flaggedCountEl = document.getElementById('flagged-count');
+        const timerEl = document.getElementById('timer');
+        const gameStatusEl = document.getElementById('game-status');
+        const difficultyBtns = document.querySelectorAll('.difficulty-btn');
+        
+        function initGame() {
+            gameActive = false;
+            gameWon = false;
+            startTime = null;
+            flaggedCount = 0;
+            clearInterval(timerInterval);
+            
+            createBoard();
+            renderBoard();
+            updateUI();
+            gameStatusEl.textContent = 'Click any cell to start scanning the network...';
+            gameStatusEl.className = 'game-status';
+        }
+        
+        function createBoard() {
+            board = [];
+            for (let r = 0; r < size; r++) {
+                board[r] = [];
+                for (let c = 0; c < size; c++) {
+                    board[r][c] = new Cell(r, c);
+                }
+            }
+        }
+        
+        function placeServers(firstClickRow, firstClickCol) {
+            let serversPlaced = 0;
+            const servers = [];
+            
+            while (serversPlaced < totalServers) {
+                const row = Math.floor(Math.random() * size);
+                const col = Math.floor(Math.random() * size);
+                
+                // Don't place server on first click or if already has server
+                if ((row === firstClickRow && col === firstClickCol) || board[row][col].server) {
+                    continue;
+                }
+                
+                board[row][col].server = true;
+                servers.push(board[row][col]);
+                serversPlaced++;
+            }
+            
+            // Make 25% of servers decoys
+            const decoyCount = Math.floor(totalServers * 0.25);
+            const shuffledServers = [...servers].sort(() => Math.random() - 0.5);
+            for (let i = 0; i < decoyCount; i++) {
+                shuffledServers[i].isDecoy = true;
+            }
+            
+            // Calculate adjacent servers for all cells
+            board.forEach(row => {
+                row.forEach(cell => {
+                    cell.calcAdjServers();
+                });
+            });
+        }
+        
+        function renderBoard() {
+            boardEl.innerHTML = '';
+            for (let r = 0; r < size; r++) {
+                const row = document.createElement('tr');
+                for (let c = 0; c < size; c++) {
+                    const cell = document.createElement('td');
+                    cell.className = 'cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    
+                    const boardCell = board[r][c];
+                    
+                    if (boardCell.revealed) {
+                        cell.classList.add('revealed');
+                        if (boardCell.server) {
+                            if (boardCell.isDecoy) {
+                                cell.classList.add('server');
+                                cell.innerHTML = '<span class="server-icon"></span>';
+                            } else {
+                                cell.classList.add('safe-server');
+                                cell.innerHTML = '<span class="connection-icon"></span>';
+                            }
+                        } else if (boardCell.adjServers > 0) {
+                            cell.textContent = boardCell.adjServers;
+                            cell.dataset.count = boardCell.adjServers;
+                        }
+                    } else if (boardCell.flagged) {
+                        cell.classList.add('flagged');
+                        cell.innerHTML = '<span class="flag-icon"></span>';
+                    }
+                    
+                    cell.addEventListener('click', handleCellClick);
+                    cell.addEventListener('contextmenu', handleRightClick);
+                    
+                    row.appendChild(cell);
+                }
+                boardEl.appendChild(row);
+            }
+        }
+        
+        function handleCellClick(e) {
+            const row = parseInt(e.target.dataset.row);
+            const col = parseInt(e.target.dataset.col);
+            const cell = board[row][col];
+            
+            if (!gameActive) {
+                // First click - start game
+                gameActive = true;
+                startTime = Date.now();
+                startTimer();
+                placeServers(row, col);
+            }
+            
+            if (cell.flagged || cell.revealed) return;
+            
+            const hitServer = cell.reveal();
+            
+            if (hitServer) {
+                // Game over - hit a decoy server
+                gameActive = false;
+                clearInterval(timerInterval);
+                revealAllServers();
+                gameStatusEl.textContent = 'DECOY TRIGGERED! Network compromised!';
+                gameStatusEl.className = 'game-status lose';
+            } else {
+                checkWin();
+            }
+            
+            renderBoard();
+        }
+        
+        function handleRightClick(e) {
+            e.preventDefault();
+            if (!gameActive) return;
+            
+            const row = parseInt(e.target.dataset.row);
+            const col = parseInt(e.target.dataset.col);
+            const cell = board[row][col];
+            
+            const wasFlagged = cell.flagged;
+            cell.flag();
+            
+            if (wasFlagged) {
+                flaggedCount--;
+            } else if (cell.flagged) {
+                flaggedCount++;
+            }
+            
+            updateUI();
+            renderBoard();
+        }
+        
+        function revealAllServers() {
+            board.forEach(row => {
+                row.forEach(cell => {
+                    if (cell.server) {
+                        cell.revealed = true;
+                    }
+                });
+            });
+        }
+        
+        function checkWin() {
+            let revealedSafeCells = 0;
+            let decoyCount = 0;
+            
+            // Count decoys and revealed safe cells
+            board.forEach(row => {
+                row.forEach(cell => {
+                    if (cell.server && cell.isDecoy) {
+                        decoyCount++;
+                    }
+                    if (cell.revealed && (!cell.server || !cell.isDecoy)) {
+                        revealedSafeCells++;
+                    }
+                });
+            });
+            
+            const totalSafeCells = (size * size) - decoyCount; // Only decoys are truly dangerous
+            
+            if (revealedSafeCells === totalSafeCells) {
+                gameActive = false;
+                gameWon = true;
+                clearInterval(timerInterval);
+                gameStatusEl.textContent = 'NETWORK SECURED! All decoys avoided!';
+                gameStatusEl.className = 'game-status win';
+            }
+        }
+        
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                timerEl.textContent = elapsed.toString().padStart(3, '0');
+            }, 100);
+        }
+        
+        function updateUI() {
+            const decoyCount = Math.floor(totalServers * 0.25);
+            serverCountEl.textContent = decoyCount;
+            flaggedCountEl.textContent = flaggedCount;
+        }
+        
+        // Difficulty button handlers
+        difficultyBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                difficultyBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                
+                size = parseInt(e.target.dataset.size);
+                totalServers = parseInt(e.target.dataset.servers);
+                
+                // Adjust table width based on size
+                boardEl.style.width = (size * 34) + 'px';
+                
+                initGame();
+            });
+        });
+        
+        // Initialize the game
+        initGame();
+    </script>
+</body>
+</html>
