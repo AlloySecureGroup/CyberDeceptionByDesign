@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lateral Movement Force-Directed Graph</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        #graph {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+            max-width: 280px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .controls::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .controls::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        
+        .controls::-webkit-scrollbar-thumb {
+            background: #00ff88;
+            border-radius: 3px;
+        }
+        
+        .controls h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #00ff88;
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .filter-section {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .filter-section h4 {
+            margin: 0 0 10px 0;
+            color: #00ff88;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .import-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 8px;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: block;
+            margin: 10px 0;
+        }
+        
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .file-input-label {
+            display: block;
+            padding: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            text-align: center;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        
+        .file-input-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .file-status {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 5px;
+            text-align: center;
+        }
+        
+        .sample-downloads {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        
+        .sample-btn {
+            flex: 1;
+            padding: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .sample-btn:hover {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: #00ff88;
+        }
+        
+        .filter-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .filter-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        
+        .filter-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .filter-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        
+        .filter-checkbox.checked::after {
+            content: '✓';
+            color: #000;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .filter-label {
+            font-size: 14px;
+            user-select: none;
+            flex: 1;
+        }
+        
+        .filter-count {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            border: none;
+            color: #000;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            flex: 1;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.secondary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+        }
+        
+        .stats {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+            min-width: 200px;
+        }
+        
+        .stats h4 {
+            margin: 0 0 10px 0;
+            color: #00ff88;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .node {
+            cursor: grab;
+            transition: opacity 0.3s;
+        }
+        
+        .node.dimmed {
+            opacity: 0.2;
+        }
+        
+        .node.highlighted {
+            opacity: 1 !important;
+        }
+        
+        .node circle {
+            filter: drop-shadow(0 0 3px rgba(0, 255, 136, 0.5));
+            transition: filter 0.3s;
+        }
+        
+        .node:hover circle {
+            filter: drop-shadow(0 0 10px rgba(0, 255, 136, 0.9));
+        }
+        
+        .node.dragging {
+            cursor: grabbing;
+        }
+        
+        .node.compromised circle {
+            filter: drop-shadow(0 0 15px rgba(255, 0, 0, 0.9));
+        }
+        
+        .node-label {
+            font-size: 10px;
+            fill: rgba(255, 255, 255, 0.8);
+            pointer-events: none;
+            text-anchor: middle;
+            user-select: none;
+            transition: opacity 0.3s;
+        }
+        
+        .node.dimmed .node-label {
+            opacity: 0.3;
+        }
+        
+        .link {
+            transition: all 0.3s;
+        }
+        
+        .link.hidden {
+            stroke-opacity: 0 !important;
+        }
+        
+        .link.highlighted {
+            stroke-opacity: 1 !important;
+        }
+        
+        .link:hover {
+            stroke-opacity: 1;
+        }
+        
+        .link-group {
+            cursor: pointer;
+        }
+        
+        .multi-method-indicator {
+            fill: #fff;
+            font-size: 8px;
+            font-weight: bold;
+            pointer-events: none;
+        }
+        
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #00ff88;
+            border-radius: 5px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+            max-width: 300px;
+        }
+        
+        .view-mode {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .view-btn {
+            flex: 1;
+            padding: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        
+        .view-btn.active {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #000;
+            border-color: #00ff88;
+        }
+        
+        .view-btn:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .error-message {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid rgba(255, 0, 0, 0.5);
+            color: #ff6b6b;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 12px;
+            display: none;
+        }
+        
+        .success-message {
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid rgba(0, 255, 136, 0.5);
+            color: #00ff88;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 12px;
+            display: none;
+        }
+        
+        .method-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            margin: 2px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <svg id="graph"></svg>
+        
+        <div class="controls">
+            <h3>Network Controls</h3>
+            
+            <div class="import-section">
+                <h4>Import Network Data</h4>
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" accept=".csv,.json">
+                    <label for="fileInput" class="file-input-label">
+                        📁 Choose CSV or JSON File
+                    </label>
+                </div>
+                <div class="file-status" id="fileStatus">No file selected</div>
+                
+                <div class="sample-downloads">
+                    <div class="sample-btn" onclick="downloadSampleCSV()">📥 Sample CSV</div>
+                    <div class="sample-btn" onclick="downloadSampleJSON()">📥 Sample JSON</div>
+                </div>
+                
+                <div class="error-message" id="errorMessage"></div>
+                <div class="success-message" id="successMessage"></div>
+            </div>
+            
+            <div class="filter-section">
+                <h4>View Mode</h4>
+                <div class="view-mode">
+                    <button class="view-btn active" onclick="setViewMode('all', event)">All</button>
+                    <button class="view-btn" onclick="setViewMode('filtered', event)">Filtered</button>
+                    <button class="view-btn" onclick="setViewMode('paths', event)">Paths</button>
+                </div>
+            </div>
+            
+            <div class="filter-section">
+                <h4>Access Methods</h4>
+                <div class="filter-controls" id="access-filters"></div>
+            </div>
+            
+            <div class="button-group">
+                <button onclick="selectAll()">All</button>
+                <button onclick="selectNone()" class="secondary">None</button>
+            </div>
+            
+            <div class="button-group">
+                <button onclick="simulateCompromise()">Simulate Attack</button>
+                <button onclick="resetSimulation()" class="secondary">Reset</button>
+            </div>
+            
+            <div class="button-group">
+                <button onclick="loadDefaultNetwork()" class="secondary">Load Default (100 nodes)</button>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <h4>Network Statistics</h4>
+            <div class="stats-item">
+                <span>Total Nodes:</span>
+                <span id="total-nodes">0</span>
+            </div>
+            <div class="stats-item">
+                <span>Unique Connections:</span>
+                <span id="total-links">0</span>
+            </div>
+            <div class="stats-item">
+                <span>Total Methods:</span>
+                <span id="total-methods">0</span>
+            </div>
+            <div class="stats-item">
+                <span>Visible Connections:</span>
+                <span id="visible-links">0</span>
+            </div>
+            <div class="stats-item">
+                <span>Connected Nodes:</span>
+                <span id="connected-nodes">0</span>
+            </div>
+            <div class="stats-item">
+                <span>Compromised:</span>
+                <span id="compromised">0</span>
+            </div>
+            <div class="stats-item">
+                <span>Avg Methods/Link:</span>
+                <span id="avg-methods">0</span>
+            </div>
+        </div>
+        
+        <div class="tooltip" id="tooltip"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script>
+        // Configuration
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        const nodeRadius = 8;
+        const accessMethods = ['RDP', 'SMB', 'WMI', 'DCOM', 'HTTP'];
+        const colors = {
+            RDP: '#ff6b6b',
+            SMB: '#4ecdc4',
+            WMI: '#45b7d1',
+            DCOM: '#f9ca24',
+            HTTP: '#a29bfe'
+        };
+        
+        // State management
+        let viewMode = 'all';
+        let activeFilters = new Set(accessMethods);
+        let selectedNode = null;
+        let data = { nodes: [], links: [] };
+        let simulation = null;
+        let svg = null;
+        let link = null;
+        let node = null;
+        
+        // Initialize SVG
+        function initializeSVG() {
+            // Clear existing SVG if any
+            d3.select('#graph').selectAll('*').remove();
+            
+            svg = d3.select('#graph')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Create gradients for multi-method links
+            const defs = svg.append('defs');
+            
+            // Create arrow markers for each method
+            Object.keys(colors).forEach(method => {
+                defs.append('marker')
+                    .attr('id', `arrow-${method}`)
+                    .attr('viewBox', '0 -5 10 10')
+                    .attr('refX', 20)
+                    .attr('refY', 0)
+                    .attr('markerWidth', 6)
+                    .attr('markerHeight', 6)
+                    .attr('orient', 'auto')
+                    .append('path')
+                    .attr('d', 'M0,-5L10,0L0,5')
+                    .attr('fill', colors[method])
+                    .attr('opacity', 0.6);
+            });
+            
+            // Create multi-color gradient
+            const gradient = defs.append('linearGradient')
+                .attr('id', 'multiMethodGradient')
+                .attr('x1', '0%')
+                .attr('y1', '0%')
+                .attr('x2', '100%')
+                .attr('y2', '0%');
+            
+            gradient.append('stop')
+                .attr('offset', '0%')
+                .style('stop-color', '#ff6b6b');
+            gradient.append('stop')
+                .attr('offset', '25%')
+                .style('stop-color', '#4ecdc4');
+            gradient.append('stop')
+                .attr('offset', '50%')
+                .style('stop-color', '#45b7d1');
+            gradient.append('stop')
+                .attr('offset', '75%')
+                .style('stop-color', '#f9ca24');
+            gradient.append('stop')
+                .attr('offset', '100%')
+                .style('stop-color', '#a29bfe');
+        }
+        
+        // Generate default network data with multiple methods per connection
+        function generateNetworkData(nodeCount) {
+            const nodes = [];
+            const links = [];
+            
+            // Create nodes (computers)
+            for (let i = 0; i < nodeCount; i++) {
+                const isServer = Math.random() < 0.15;
+                const isDC = i === 0;
+                nodes.push({
+                    id: i,
+                    name: isDC ? 'DC01' : isServer ? `SRV${String(i).padStart(2, '0')}` : `WS${String(i).padStart(3, '0')}`,
+                    type: isDC ? 'dc' : isServer ? 'server' : 'workstation',
+                    compromised: false,
+                    x: Math.random() * width,
+                    y: Math.random() * height
+                });
+            }
+            
+            // Create realistic network topology with multiple methods per connection
+            const linkMap = new Map();
+            
+            // Helper function to add a link with methods
+            function addLink(source, target, methods) {
+                const key = source < target ? `${source}-${target}` : `${target}-${source}`;
+                if (!linkMap.has(key)) {
+                    linkMap.set(key, {
+                        source: Math.min(source, target),
+                        target: Math.max(source, target),
+                        methods: new Set()
+                    });
+                }
+                methods.forEach(m => linkMap.get(key).methods.add(m));
+            }
+            
+            // Domain Controller connections (usually have multiple methods)
+            for (let i = 1; i < nodeCount; i++) {
+                if (Math.random() < 0.3) {
+                    const methodCount = 1 + Math.floor(Math.random() * 3); // 1-3 methods
+                    const methods = [];
+                    const availableMethods = [...accessMethods];
+                    for (let m = 0; m < methodCount; m++) {
+                        const idx = Math.floor(Math.random() * availableMethods.length);
+                        methods.push(availableMethods.splice(idx, 1)[0]);
+                    }
+                    addLink(0, i, methods);
+                }
+            }
+            
+            // Create subnet-like clusters
+            const subnets = 5;
+            const nodesPerSubnet = Math.floor(nodeCount / subnets);
+            
+            for (let subnet = 0; subnet < subnets; subnet++) {
+                const start = subnet * nodesPerSubnet;
+                const end = Math.min(start + nodesPerSubnet, nodeCount);
+                
+                // Connect nodes within subnet
+                for (let i = start; i < end; i++) {
+                    const connections = 2 + Math.floor(Math.random() * 4);
+                    for (let c = 0; c < connections; c++) {
+                        const target = start + Math.floor(Math.random() * (end - start));
+                        if (target !== i) {
+                            // Workstations typically use 1-2 methods
+                            // Servers may use 2-4 methods
+                            const isServerConnection = nodes[i].type === 'server' || nodes[target].type === 'server';
+                            const maxMethods = isServerConnection ? 4 : 2;
+                            const methodCount = 1 + Math.floor(Math.random() * maxMethods);
+                            
+                            const methods = [];
+                            const availableMethods = [...accessMethods];
+                            for (let m = 0; m < methodCount && m < availableMethods.length; m++) {
+                                const idx = Math.floor(Math.random() * availableMethods.length);
+                                methods.push(availableMethods.splice(idx, 1)[0]);
+                            }
+                            addLink(i, target, methods);
+                        }
+                    }
+                }
+                
+                // Connect subnets (usually single method)
+                if (subnet < subnets - 1) {
+                    const nextSubnetStart = (subnet + 1) * nodesPerSubnet;
+                    for (let i = 0; i < 3; i++) {
+                        const from = start + Math.floor(Math.random() * nodesPerSubnet);
+                        const to = nextSubnetStart + Math.floor(Math.random() * nodesPerSubnet);
+                        if (to < nodeCount) {
+                            const methodCount = 1 + Math.floor(Math.random() * 2); // 1-2 methods for inter-subnet
+                            const methods = [];
+                            for (let m = 0; m < methodCount; m++) {
+                                methods.push(accessMethods[Math.floor(Math.random() * accessMethods.length)]);
+                            }
+                            addLink(from, to, [...new Set(methods)]);
+                        }
+                    }
+                }
+            }
+            
+            // Convert map to array
+            linkMap.forEach(link => {
+                links.push({
+                    source: link.source,
+                    target: link.target,
+                    methods: Array.from(link.methods)
+                });
+            });
+            
+            return { nodes, links };
+        }
+        
+        // Parse CSV data with support for multiple methods
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+            
+            const nodes = new Map();
+            const linkMap = new Map();
+            
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.trim());
+                const row = {};
+                headers.forEach((header, index) => {
+                    row[header] = values[index];
+                });
+                
+                // Create nodes if they don't exist
+                if (!nodes.has(row.source)) {
+                    nodes.set(row.source, {
+                        id: nodes.size,
+                        name: row.source,
+                        type: row.source_type || 'workstation',
+                        compromised: false
+                    });
+                }
+                
+                if (!nodes.has(row.target)) {
+                    nodes.set(row.target, {
+                        id: nodes.size,
+                        name: row.target,
+                        type: row.target_type || 'workstation',
+                        compromised: false
+                    });
+                }
+                
+                // Parse methods (can be semicolon separated for multiple methods)
+                const methods = row.methods ? row.methods.split(';').map(m => m.trim()) : 
+                               row.method ? [row.method] : ['RDP'];
+                
+                // Create or update link
+                const sourceId = nodes.get(row.source).id;
+                const targetId = nodes.get(row.target).id;
+                const key = sourceId < targetId ? `${sourceId}-${targetId}` : `${targetId}-${sourceId}`;
+                
+                if (!linkMap.has(key)) {
+                    linkMap.set(key, {
+                        source: Math.min(sourceId, targetId),
+                        target: Math.max(sourceId, targetId),
+                        methods: new Set()
+                    });
+                }
+                
+                methods.forEach(m => linkMap.get(key).methods.add(m));
+            }
+            
+            // Convert to arrays
+            const links = Array.from(linkMap.values()).map(link => ({
+                source: link.source,
+                target: link.target,
+                methods: Array.from(link.methods)
+            }));
+            
+            return {
+                nodes: Array.from(nodes.values()),
+                links: links
+            };
+        }
+        
+        // Parse JSON data with support for multiple methods
+        function parseJSON(jsonText) {
+            const jsonData = JSON.parse(jsonText);
+            
+            // Handle both formats: direct nodes/links or nested in data object
+            const nodes = jsonData.nodes || jsonData.data?.nodes || [];
+            const links = jsonData.links || jsonData.connections || jsonData.data?.links || [];
+            
+            // Normalize node IDs
+            const nodeMap = new Map();
+            nodes.forEach((node, index) => {
+                nodeMap.set(node.id || node.name || index, index);
+            });
+            
+            // Process nodes
+            const processedNodes = nodes.map((node, index) => ({
+                id: index,
+                name: node.name || node.id || `Node${index}`,
+                type: node.type || 'workstation',
+                compromised: node.compromised || false
+            }));
+            
+            // Process links and merge duplicates
+            const linkMap = new Map();
+            links.forEach(link => {
+                const sourceId = nodeMap.get(link.source) ?? link.source;
+                const targetId = nodeMap.get(link.target) ?? link.target;
+                const key = sourceId < targetId ? `${sourceId}-${targetId}` : `${targetId}-${sourceId}`;
+                
+                if (!linkMap.has(key)) {
+                    linkMap.set(key, {
+                        source: Math.min(sourceId, targetId),
+                        target: Math.max(sourceId, targetId),
+                        methods: new Set()
+                    });
+                }
+                
+                // Handle both single method and multiple methods
+                if (link.methods) {
+                    link.methods.forEach(m => linkMap.get(key).methods.add(m));
+                } else if (link.type || link.method) {
+                    linkMap.get(key).methods.add(link.type || link.method);
+                } else {
+                    linkMap.get(key).methods.add('RDP');
+                }
+            });
+            
+            // Convert to arrays
+            const processedLinks = Array.from(linkMap.values()).map(link => ({
+                source: link.source,
+                target: link.target,
+                methods: Array.from(link.methods)
+            }));
+            
+            return {
+                nodes: processedNodes,
+                links: processedLinks
+            };
+        }
+        
+        // File input handler
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            const fileName = file.name.toLowerCase();
+            
+            reader.onload = function(e) {
+                try {
+                    let newData;
+                    
+                    if (fileName.endsWith('.csv')) {
+                        newData = parseCSV(e.target.result);
+                    } else if (fileName.endsWith('.json')) {
+                        newData = parseJSON(e.target.result);
+                    } else {
+                        throw new Error('Unsupported file format. Please use CSV or JSON.');
+                    }
+                    
+                    // Validate data
+                    if (!newData.nodes || newData.nodes.length === 0) {
+                        throw new Error('No valid nodes found in the file.');
+                    }
+                    
+                    if (!newData.links || newData.links.length === 0) {
+                        throw new Error('No valid connections found in the file.');
+                    }
+                    
+                    // Load the new network
+                    loadNetwork(newData);
+                    
+                    // Show success message
+                    const totalMethods = newData.links.reduce((sum, link) => sum + link.methods.length, 0);
+                    showMessage('success', `Successfully loaded ${newData.nodes.length} nodes, ${newData.links.length} connections with ${totalMethods} total methods.`);
+                    document.getElementById('fileStatus').textContent = file.name;
+                    
+                } catch (error) {
+                    showMessage('error', `Error loading file: ${error.message}`);
+                    document.getElementById('fileStatus').textContent = 'Failed to load file';
+                }
+            };
+            
+            reader.readAsText(file);
+        });
+        
+        // Show message
+        function showMessage(type, message) {
+            const errorEl = document.getElementById('errorMessage');
+            const successEl = document.getElementById('successMessage');
+            
+            errorEl.style.display = 'none';
+            successEl.style.display = 'none';
+            
+            if (type === 'error') {
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
+                setTimeout(() => errorEl.style.display = 'none', 5000);
+            } else {
+                successEl.textContent = message;
+                successEl.style.display = 'block';
+                setTimeout(() => successEl.style.display = 'none', 5000);
+            }
+        }
+        
+        // Download sample CSV with multiple methods
+        function downloadSampleCSV() {
+            const csvContent = `source,target,methods,source_type,target_type
+DC01,WS001,RDP;SMB;WMI,dc,workstation
+DC01,SRV01,SMB;HTTP;DCOM,dc,server
+WS001,WS002,SMB,workstation,workstation
+WS002,WS003,WMI;RDP,workstation,workstation
+SRV01,WS004,HTTP;SMB,server,workstation
+SRV01,SRV02,DCOM;WMI;SMB,server,server
+WS003,SRV02,RDP,workstation,server
+WS004,WS005,SMB;WMI,workstation,workstation
+SRV02,WS006,HTTP;RDP;SMB,server,workstation
+WS005,WS006,WMI,workstation,workstation
+DC01,WS007,DCOM;RDP;SMB;WMI,dc,workstation
+WS007,WS008,RDP;SMB,workstation,workstation
+WS008,SRV03,SMB;HTTP,workstation,server
+SRV03,WS009,HTTP;WMI;DCOM,server,workstation
+WS009,WS010,WMI;SMB,workstation,workstation`;
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sample_network_multi_methods.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // Download sample JSON with multiple methods
+        function downloadSampleJSON() {
+            const jsonContent = {
+                "nodes": [
+                    {"id": "DC01", "name": "DC01", "type": "dc"},
+                    {"id": "SRV01", "name": "SRV01", "type": "server"},
+                    {"id": "SRV02", "name": "SRV02", "type": "server"},
+                    {"id": "SRV03", "name": "SRV03", "type": "server"},
+                    {"id": "WS001", "name": "WS001", "type": "workstation"},
+                    {"id": "WS002", "name": "WS002", "type": "workstation"},
+                    {"id": "WS003", "name": "WS003", "type": "workstation"},
+                    {"id": "WS004", "name": "WS004", "type": "workstation"},
+                    {"id": "WS005", "name": "WS005", "type": "workstation"},
+                    {"id": "WS006", "name": "WS006", "type": "workstation"},
+                    {"id": "WS007", "name": "WS007", "type": "workstation"},
+                    {"id": "WS008", "name": "WS008", "type": "workstation"},
+                    {"id": "WS009", "name": "WS009", "type": "workstation"},
+                    {"id": "WS010", "name": "WS010", "type": "workstation"}
+                ],
+                "links": [
+                    {"source": "DC01", "target": "WS001", "methods": ["RDP", "SMB", "WMI"]},
+                    {"source": "DC01", "target": "SRV01", "methods": ["SMB", "HTTP", "DCOM"]},
+                    {"source": "WS001", "target": "WS002", "methods": ["SMB"]},
+                    {"source": "WS002", "target": "WS003", "methods": ["WMI", "RDP"]},
+                    {"source": "SRV01", "target": "WS004", "methods": ["HTTP", "SMB"]},
+                    {"source": "SRV01", "target": "SRV02", "methods": ["DCOM", "WMI", "SMB"]},
+                    {"source": "WS003", "target": "SRV02", "methods": ["RDP"]},
+                    {"source": "WS004", "target": "WS005", "methods": ["SMB", "WMI"]},
+                    {"source": "SRV02", "target": "WS006", "methods": ["HTTP", "RDP", "SMB"]},
+                    {"source": "WS005", "target": "WS006", "methods": ["WMI"]},
+                    {"source": "DC01", "target": "WS007", "methods": ["DCOM", "RDP", "SMB", "WMI"]},
+                    {"source": "WS007", "target": "WS008", "methods": ["RDP", "SMB"]},
+                    {"source": "WS008", "target": "SRV03", "methods": ["SMB", "HTTP"]},
+                    {"source": "SRV03", "target": "WS009", "methods": ["HTTP", "WMI", "DCOM"]},
+                    {"source": "WS009", "target": "WS010", "methods": ["WMI", "SMB"]}
+                ]
+            };
+            
+            const blob = new Blob([JSON.stringify(jsonContent, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sample_network_multi_methods.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // Create color for link based on methods
+        function getLinkColor(methods, filteredMethods) {
+            if (!filteredMethods || filteredMethods.length === 0) return '#666';
+            if (filteredMethods.length === 1) return colors[filteredMethods[0]];
+            return 'url(#multiMethodGradient)';
+        }
+        
+        // Load network data
+        function loadNetwork(networkData) {
+            data = networkData;
+            
+            // Reset filters
+            activeFilters = new Set(accessMethods);
+            selectedNode = null;
+            viewMode = 'all';
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('.view-btn').classList.add('active');
+            
+            // Initialize SVG
+            initializeSVG();
+            
+            // Create simulation
+            if (simulation) simulation.stop();
+            
+            simulation = d3.forceSimulation(data.nodes)
+                .force('link', d3.forceLink(data.links).id(d => d.id).distance(100))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collision', d3.forceCollide().radius(20));
+            
+            // Create link groups
+            const linkGroup = svg.append('g').attr('class', 'links');
+            
+            link = linkGroup.selectAll('.link-group')
+                .data(data.links)
+                .enter().append('g')
+                .attr('class', 'link-group');
+            
+            // Create separate lines for each method in a link
+            link.each(function(d) {
+                const group = d3.select(this);
+                const numMethods = d.methods.length;
+                
+                d.methods.forEach((method, i) => {
+                    group.append('line')
+                        .attr('class', `link link-${method}`)
+                        .attr('stroke', colors[method])
+                        .attr('stroke-width', numMethods > 1 ? 1.5 : 2)
+                        .attr('stroke-opacity', 0.6)
+                        .attr('marker-end', `url(#arrow-${method})`)
+                        .style('stroke-dasharray', numMethods > 1 ? `${5 + i * 2}, ${3 + i}` : null);
+                });
+            });
+            
+            // Create nodes
+            node = svg.append('g')
+                .selectAll('g')
+                .data(data.nodes)
+                .enter().append('g')
+                .attr('class', 'node')
+                .call(drag(simulation));
+            
+            // Add circles for nodes
+            node.append('circle')
+                .attr('r', d => d.type === 'dc' ? 12 : d.type === 'server' ? 10 : 8)
+                .attr('fill', d => d.type === 'dc' ? '#ff0000' : d.type === 'server' ? '#ffa500' : '#00ff88')
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 2);
+            
+            // Add labels
+            node.append('text')
+                .attr('class', 'node-label')
+                .attr('dy', -15)
+                .text(d => d.name);
+            
+            // Node click handler
+            node.on('click', (event, d) => {
+                if (viewMode === 'paths') {
+                    selectedNode = selectedNode === d ? null : d;
+                    updateVisualization();
+                }
+            });
+            
+            // Add tooltips
+            const tooltip = d3.select('#tooltip');
+            
+            // Link tooltips
+            link.on('mouseover', (event, d) => {
+                const methodList = d.methods.map(m => 
+                    `<span class="method-badge" style="background: ${colors[m]}">${m}</span>`
+                ).join('');
+                
+                const sourceName = data.nodes.find(n => n.id === (d.source.id ?? d.source))?.name || 'Unknown';
+                const targetName = data.nodes.find(n => n.id === (d.target.id ?? d.target))?.name || 'Unknown';
+                
+                tooltip
+                    .style('opacity', 1)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY + 10) + 'px')
+                    .html(`
+                        <strong>Connection</strong><br>
+                        From: ${sourceName}<br>
+                        To: ${targetName}<br>
+                        <hr style="margin: 5px 0; opacity: 0.3;">
+                        Methods (${d.methods.length}):<br>
+                        ${methodList}
+                    `);
+            })
+            .on('mouseout', () => {
+                tooltip.style('opacity', 0);
+            });
+            
+            // Node tooltips
+            node.on('mouseover', (event, d) => {
+                const connections = data.links.filter(l => 
+                    (l.source.id === d.id || l.source === d.id) || 
+                    (l.target.id === d.id || l.target === d.id)
+                );
+                
+                const inbound = connections.filter(l => l.target.id === d.id || l.target === d.id);
+                const outbound = connections.filter(l => l.source.id === d.id || l.source === d.id);
+                
+                // Count all methods
+                const methodBreakdown = {};
+                connections.forEach(conn => {
+                    conn.methods.forEach(method => {
+                        if (!methodBreakdown[method]) methodBreakdown[method] = 0;
+                        methodBreakdown[method]++;
+                    });
+                });
+                
+                let methodsHtml = Object.entries(methodBreakdown)
+                    .map(([method, count]) => 
+                        `<span class="method-badge" style="background: ${colors[method]}">${method}: ${count}</span>`
+                    ).join('');
+                
+                tooltip
+                    .style('opacity', 1)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY + 10) + 'px')
+                    .html(`
+                        <strong>${d.name}</strong><br>
+                        Type: ${d.type}<br>
+                        Unique Connections: ${connections.length}<br>
+                        Inbound: ${inbound.length} | Outbound: ${outbound.length}<br>
+                        <hr style="margin: 5px 0; opacity: 0.3;">
+                        Access Methods:<br>
+                        ${methodsHtml}<br>
+                        <hr style="margin: 5px 0; opacity: 0.3;">
+                        Status: ${d.compromised ? '<span style="color: #ff0000;">Compromised</span>' : '<span style="color: #00ff88;">Clean</span>'}
+                    `);
+            })
+            .on('mouseout', () => {
+                tooltip.style('opacity', 0);
+            });
+            
+            // Update positions on simulation tick
+            simulation.on('tick', () => {
+                link.selectAll('line')
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+                
+                node.attr('transform', d => `translate(${d.x},${d.y})`);
+            });
+            
+            // Update filter controls
+            updateFilterControls();
+            
+            // Update statistics
+            updateStatistics();
+        }
+        
+        // Update filter controls
+        function updateFilterControls() {
+            const methodCounts = countMethodOccurrences();
+            const filterContainer = document.getElementById('access-filters');
+            filterContainer.innerHTML = '';
+            
+            accessMethods.forEach(method => {
+                const count = methodCounts[method] || 0;
+                if (count > 0) {
+                    const filterItem = document.createElement('div');
+                    filterItem.className = 'filter-item';
+                    filterItem.onclick = () => toggleFilter(method);
+                    
+                    filterItem.innerHTML = `
+                        <div class="filter-checkbox checked" id="filter-${method}" style="border-color: ${colors[method]}; background: ${colors[method]}"></div>
+                        <span class="filter-label">${method}</span>
+                        <span class="filter-count">${count}</span>
+                    `;
+                    
+                    filterContainer.appendChild(filterItem);
+                }
+            });
+        }
+        
+        // Count method occurrences
+        function countMethodOccurrences() {
+            const counts = {};
+            accessMethods.forEach(method => counts[method] = 0);
+            
+            data.links.forEach(link => {
+                link.methods.forEach(method => {
+                    if (counts[method] !== undefined) {
+                        counts[method]++;
+                    }
+                });
+            });
+            
+            return counts;
+        }
+        
+        // Update statistics
+        function updateStatistics() {
+            const totalMethods = data.links.reduce((sum, link) => sum + link.methods.length, 0);
+            const avgMethods = data.links.length > 0 ? (totalMethods / data.links.length).toFixed(1) : '0';
+            
+            document.getElementById('total-nodes').textContent = data.nodes.length;
+            document.getElementById('total-links').textContent = data.links.length;
+            document.getElementById('total-methods').textContent = totalMethods;
+            document.getElementById('visible-links').textContent = data.links.length;
+            document.getElementById('connected-nodes').textContent = data.nodes.length;
+            document.getElementById('compromised').textContent = data.nodes.filter(n => n.compromised).length;
+            document.getElementById('avg-methods').textContent = avgMethods;
+        }
+        
+        // Drag functionality
+        function drag(simulation) {
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+                d3.select(this).classed('dragging', true);
+            }
+            
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+            
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+                d3.select(this).classed('dragging', false);
+            }
+            
+            return d3.drag()
+                .on('start', dragstarted)
+                .on('drag', dragged)
+                .on('end', dragended);
+        }
+        
+        // Filter toggle
+        function toggleFilter(method) {
+            const checkbox = document.getElementById(`filter-${method}`);
+            
+            if (activeFilters.has(method)) {
+                activeFilters.delete(method);
+                checkbox.classList.remove('checked');
+                checkbox.style.background = 'transparent';
+            } else {
+                activeFilters.add(method);
+                checkbox.classList.add('checked');
+                checkbox.style.background = colors[method];
+            }
+            
+            updateVisualization();
+        }
+        
+        // Update visualization based on filters
+        function updateVisualization() {
+            if (!link || !node) return;
+            
+            let visibleLinks = [];
+            let connectedNodeIds = new Set();
+            
+            // Filter links based on active methods
+            const filteredLinks = data.links.filter(l => 
+                l.methods.some(m => activeFilters.has(m))
+            );
+            
+            if (viewMode === 'paths' && selectedNode) {
+                visibleLinks = filteredLinks.filter(l => {
+                    const sourceId = l.source.id !== undefined ? l.source.id : l.source;
+                    const targetId = l.target.id !== undefined ? l.target.id : l.target;
+                    return sourceId === selectedNode.id || targetId === selectedNode.id;
+                });
+                
+                connectedNodeIds.add(selectedNode.id);
+                visibleLinks.forEach(l => {
+                    connectedNodeIds.add(l.source.id !== undefined ? l.source.id : l.source);
+                    connectedNodeIds.add(l.target.id !== undefined ? l.target.id : l.target);
+                });
+            } else if (viewMode === 'filtered') {
+                visibleLinks = filteredLinks;
+                visibleLinks.forEach(l => {
+                    connectedNodeIds.add(l.source.id !== undefined ? l.source.id : l.source);
+                    connectedNodeIds.add(l.target.id !== undefined ? l.target.id : l.target);
+                });
+            } else {
+                visibleLinks = filteredLinks;
+                data.nodes.forEach(n => connectedNodeIds.add(n.id));
+            }
+            
+            // Update link visibility for each method line
+            link.each(function(d) {
+                const group = d3.select(this);
+                const hasActiveMethod = d.methods.some(m => activeFilters.has(m));
+                const isInPath = viewMode === 'paths' && selectedNode && (
+                    (d.source.id ?? d.source) === selectedNode.id || 
+                    (d.target.id ?? d.target) === selectedNode.id
+                );
+                
+                group.selectAll('line').each(function() {
+                    const line = d3.select(this);
+                    const lineClasses = line.attr('class').split(' ');
+                    const method = lineClasses.find(c => c.startsWith('link-'))?.replace('link-', '');
+                    
+                    if (method && activeFilters.has(method)) {
+                        line.classed('hidden', false)
+                            .classed('highlighted', isInPath);
+                    } else {
+                        line.classed('hidden', true)
+                            .classed('highlighted', false);
+                    }
+                });
+            });
+            
+            // Update nodes visibility
+            if (viewMode === 'all') {
+                node.classed('dimmed', false)
+                    .classed('highlighted', false);
+            } else {
+                node.classed('dimmed', d => !connectedNodeIds.has(d.id))
+                    .classed('highlighted', d => {
+                        if (viewMode === 'paths' && selectedNode) {
+                            return d.id === selectedNode.id;
+                        }
+                        return connectedNodeIds.has(d.id);
+                    });
+            }
+            
+            document.getElementById('visible-links').textContent = visibleLinks.length;
+            document.getElementById('connected-nodes').textContent = connectedNodeIds.size;
+        }
+        
+        // View mode functions
+        function setViewMode(mode, event) {
+            viewMode = mode;
+            selectedNode = null;
+            
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            updateVisualization();
+        }
+        
+        // Select all filters
+        function selectAll() {
+            accessMethods.forEach(method => {
+                activeFilters.add(method);
+                const checkbox = document.getElementById(`filter-${method}`);
+                if (checkbox) {
+                    checkbox.classList.add('checked');
+                    checkbox.style.background = colors[method];
+                }
+            });
+            updateVisualization();
+        }
+        
+        // Deselect all filters
+        function selectNone() {
+            activeFilters.clear();
+            accessMethods.forEach(method => {
+                const checkbox = document.getElementById(`filter-${method}`);
+                if (checkbox) {
+                    checkbox.classList.remove('checked');
+                    checkbox.style.background = 'transparent';
+                }
+            });
+            updateVisualization();
+        }
+        
+        // Simulate lateral movement compromise
+        function simulateCompromise() {
+            if (data.nodes.length === 0) return;
+            
+            const compromisedNodes = new Set([0]);
+            data.nodes[0].compromised = true;
+            
+            function spreadCompromise() {
+                const newCompromised = new Set();
+                
+                data.links.forEach(link => {
+                    // Check if any active filter method is in this link
+                    const hasActiveMethod = link.methods.some(m => activeFilters.has(m));
+                    if (!hasActiveMethod) return;
+                    
+                    const sourceId = link.source.id !== undefined ? link.source.id : link.source;
+                    const targetId = link.target.id !== undefined ? link.target.id : link.target;
+                    
+                    // Higher chance with more methods available
+                    const spreadChance = 0.2 + (0.1 * link.methods.filter(m => activeFilters.has(m)).length);
+                    
+                    if (compromisedNodes.has(sourceId) && !data.nodes[targetId].compromised) {
+                        if (Math.random() < spreadChance) {
+                            data.nodes[targetId].compromised = true;
+                            newCompromised.add(targetId);
+                        }
+                    }
+                    if (compromisedNodes.has(targetId) && !data.nodes[sourceId].compromised) {
+                        if (Math.random() < spreadChance) {
+                            data.nodes[sourceId].compromised = true;
+                            newCompromised.add(sourceId);
+                        }
+                    }
+                });
+                
+                newCompromised.forEach(id => compromisedNodes.add(id));
+                
+                node.select('circle')
+                    .transition()
+                    .duration(500)
+                    .attr('fill', d => {
+                        if (d.compromised) return '#ff0000';
+                        return d.type === 'dc' ? '#ff0000' : d.type === 'server' ? '#ffa500' : '#00ff88';
+                    });
+                
+                node.classed('compromised', d => d.compromised);
+                
+                document.getElementById('compromised').textContent = 
+                    data.nodes.filter(n => n.compromised).length;
+                
+                if (newCompromised.size > 0 && compromisedNodes.size < data.nodes.length) {
+                    setTimeout(spreadCompromise, 1000);
+                }
+            }
+            
+            spreadCompromise();
+        }
+        
+        // Reset simulation
+        function resetSimulation() {
+            data.nodes.forEach(n => n.compromised = false);
+            
+            if (node) {
+                node.select('circle')
+                    .transition()
+                    .duration(500)
+                    .attr('fill', d => d.type === 'dc' ? '#ff0000' : d.type === 'server' ? '#ffa500' : '#00ff88');
+                
+                node.classed('compromised', false);
+            }
+            
+            document.getElementById('compromised').textContent = '0';
+        }
+        
+        // Load default network
+        function loadDefaultNetwork() {
+            const defaultData = generateNetworkData(100);
+            loadNetwork(defaultData);
+            document.getElementById('fileStatus').textContent = 'Default network (100 nodes)';
+            showMessage('success', 'Loaded default network with 100 nodes and multi-method connections.');
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            
+            if (svg) {
+                svg.attr('width', width).attr('height', height);
+            }
+            
+            if (simulation) {
+                simulation.force('center', d3.forceCenter(width / 2, height / 2));
+                simulation.alpha(0.3).restart();
+            }
+        });
+        
+        // Initialize with default network on page load
+        loadDefaultNetwork();
+    </script>
+</body>
+</html>
